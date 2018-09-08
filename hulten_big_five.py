@@ -2,7 +2,6 @@
 
 import bokeh
 from bokeh.embed import components as plot_html
-from bokeh.io import show
 from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.palettes import Spectral6
 from bokeh.plotting import figure
@@ -11,7 +10,6 @@ from flask import Flask, request, render_template
 import io
 import pandas as pd
 import re
-import requests
 
 
 app = Flask(__name__)
