@@ -32,8 +32,8 @@ def calc_mean_scores(data):
         else:
             row = row[:2] + [points[e] for e in row[2:]]
         rows += [row]
-    if not columns[1]:
-        columns[1] = 'id'
+    columns[0] = 'Timestamp'
+    columns[1] = 'id'
     answers = pd.DataFrame(rows, columns=columns)
 
     c = pd.read_csv('categories.csv', sep='\t')
