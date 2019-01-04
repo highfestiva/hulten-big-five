@@ -1,0 +1,10 @@
+Bestämd = Aktiv, Bestämd, Spänningssökande
+Entusiastisk = Glad, Kamratlig, Sällskaplig, Spänningssökande
+Flyktig = Ilsken, Omåttlig
+Tillbakadragen = Nedstämd, Självmedveten, Sårbar, Ångestfylld
+Medlidande = Sympatisk, Altruistisk, Tillitsfull
+Artig = Samarbetsvillig, Blygsam, Moralisk
+Idog = Prestationsinriktad, Effektiv, Disciplinerad
+Ordingsam = Försiktig, Plikttrogen, Ordningsam
+Intellektuell = Intellektuell
+Estetiskt öppen = Artistisk, Emotionell, Fantasirik, Liberal, Äventyrlig

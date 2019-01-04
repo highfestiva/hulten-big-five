@@ -3,12 +3,14 @@
 import bokeh
 from bokeh.embed import components as plot_html
 from bokeh.models import ColumnDataSource, HoverTool, FactorRange
-from bokeh.palettes import Spectral, Paired
+from bokeh.palettes import viridis, Paired
 from bokeh.plotting import figure
+from collections import defaultdict
 import csv
 from flask import Flask, request, render_template, redirect
 from hashlib import sha1
 import io
+from math import pi
 import pandas as pd
 import re
 
@@ -39,43 +41,61 @@ def csv2df(data):
     return answers
 
 
-def calc_mean_scores(answers):
+def calc_scores(answers):
     answers = answers.copy()
     c = pd.read_csv('categories.csv', sep='\t')
     for i,question,scale,subscale,sign in zip(c.index, c['Fraga'], c['Scales'], c['SubScales'], c['Sign']):
         apply_sign = lambda x: 6-x if sign=='-' else x
         answers[question] = apply_sign(answers[question])
 
-    scores = answers.drop(['Timestamp','id'], axis=1).T
+    scores = answers.drop(['Timestamp'], axis=1).set_index('id').T
+    _cat10 = [line.split('=') for line in open('small-ten.txt', encoding='utf8')]
+    _cat10 = {k.strip():[w.strip() for w in vs.split(',')] for k,vs in _cat10}
+    cat10 = defaultdict(list)
+    for k,v in _cat10.items():
+        for vv in v:
+            cat10[vv] += [k]
+    cat10 = dict(cat10)
     for i,question,scale,subscale,sign in zip(c.index, c['Fraga'], c['Scales'], c['SubScales'], c['Sign']):
-        scores.loc[question, 'Scales'] = scale.capitalize()
-        scores.loc[question, 'SubScales'] = subscale.capitalize()
+        scores.loc[question, 'scales'] = scale.capitalize()
+        subscales = cat10[subscale.capitalize()]
+        scores.loc[question, 'subscales'] = subscales[0]
+        for i,ss in enumerate(subscales[1:]):
+            scores.loc[question+str(i), 'subscales'] = ss
 
-    mean_scores = scores.groupby(['Scales']).mean()
-    mean_scores = mean_scores.T.mean().to_frame()
-    mean_scores.columns = ['Mean']
-    mean_scores = mean_scores.reset_index()
+    scores_main = scores.groupby(['scales']).mean()
+    scores_sub = scores.groupby(['scales','subscales']).mean()
+    for main in scores_main.index:
+        v = scores_main.loc[main]
+        scores_sub.loc[(main,'*'), :] = v
+    scores_sub = scores_sub.sort_index()
+    percentile = (scores_sub.rank(axis=1)-1) * 99 // (len(scores_sub.columns)-1) + 1
+    scores_sub['mean'] = scores_sub.mean(axis=1)
+    scores_sub = scores_sub.join(percentile, rsuffix='-percentile')
     cnt = len(answers)
-    return mean_scores, cnt
+    return scores_sub, cnt
 
 
-def chart_scores(title, mean_scores):
+def chart_scores(title, scores, student_id=None):
     p = figure()
-    if 'Student' in mean_scores.columns:
-        data = {'color':Paired[10]}
-        data['Mean'] = sum(zip(mean_scores['Mean'], mean_scores['Student']), ())
-        factors = [(scale,who) for scale in mean_scores['Scales'] for who in ('Övriga','Du')]
-        data['Scales'] = factors
+    data = {'color':viridis(len(scores))}
+    if student_id is None:
+        # Mr. Hulten
+        data['mean'] = scores['mean']
+        data['scales'] = factors = [(a,b.replace('*',a)) for a,b in scores.index]
         xrng = FactorRange(*factors)
+        tooltips = [('Medelvärde', '@mean{1.1}')]
     else:
-        data = {'color':Spectral[5]}
-        data['Mean'] = mean_scores['Mean']
-        xrng = mean_scores['Scales']
-        data['Scales'] = xrng
+        # Student
+        data['mean'] = scores[student_id]
+        data['percentile'] = [int(i) for i in scores[student_id+'-percentile']]
+        data['scales'] = factors = [(a,b.replace('*',a)) for a,b in scores.index]
+        xrng = FactorRange(*factors)
+        tooltips = [('Resultat', '@mean{1.1}'), ('Percentil', '@percentile')]
     source = ColumnDataSource(data=data)
     p = figure(title=title, x_range=xrng, y_range=(0,5), sizing_mode='stretch_both', toolbar_location=None, tools='')
-    bar = p.vbar(x='Scales', top='Mean', color='color', width=0.9, source=source)
-    tooltips = [('Medelvärde', '@Mean{1.1}')]
+    p.xaxis.major_label_orientation = pi/3
+    bar = p.vbar(x='scales', top='mean', color='color', width=0.9, source=source)
     p.add_tools(HoverTool(renderers=[bar], tooltips=tooltips, mode='vline'))
     script,div = plot_html(p)
     return script+div
@@ -104,7 +124,7 @@ def show_latest_group():
     with open(filename, 'rt') as f:
         data = f.read()
         answers = csv2df(data)
-        mean_scores,cnt = calc_mean_scores(answers)
+        scores,cnt = calc_scores(answers)
         cips = [(student_id,cipher(student_id)) for student_id in answers['id']]
         extra_html = '<h2>Individuella resultat</h2>\n'
         extra_html += '<table><tr><th>Student</th><th>URL</th></tr>\n'
@@ -113,7 +133,7 @@ def show_latest_group():
             extra_html += '<tr><td>%s</td><td><a href="%s">%s</a></td></tr>\n' % (student_id, url, url)
         extra_html += '</table>\n<br/>\n'
         title = 'Personlighetstest: medelvärde för %i svar' % cnt
-        scores_html = chart_scores(title, mean_scores)
+        scores_html = chart_scores(title, scores)
         return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer=extra_html)
 
 
@@ -123,13 +143,10 @@ def show_student(cipher_id):
         data = f.read()
         answers = csv2df(data)
         student_id = [sid for sid in answers['id'] if cipher(sid)==cipher_id][0]
-        other_answers = answers[answers['id']!=student_id]
-        mean_scores,cnt = calc_mean_scores(other_answers)
-        answers = answers[answers['id']==student_id]
-        student_mean_scores,_ = calc_mean_scores(answers)
-        mean_scores['Student'] = student_mean_scores['Mean']
-        title = 'Personlighetstest: %s jämfört med övriga %i svar' % (student_id, cnt)
-        scores_html = chart_scores(title, mean_scores)
+        scores,cnt = calc_scores(answers)
+        scores = scores[[c for c in scores.columns if student_id in c]]
+        title = 'Personlighetstest: %s jämfört med övriga %i svar' % (student_id, cnt-1)
+        scores_html = chart_scores(title, scores, student_id=student_id)
         return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer='')
 
 
