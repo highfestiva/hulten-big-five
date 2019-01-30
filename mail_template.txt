@@ -1,0 +1,10 @@
+subject=Psykologienkätresultat
+
+Hej,
+
+här kommer ditt resultat på psykologienkäten:
+---
+
+Mvh,
+Andreas Hultenmo
+Lärare

@@ -13,6 +13,7 @@ import io
 from math import pi
 import pandas as pd
 import re
+from urllib.parse import quote as url_quote
 
 
 app = Flask(__name__)
@@ -33,7 +34,7 @@ def csv2df(data):
             columns = row[:2] + [re.sub(r'^.*\d+\.* (.+)\]', r'\1', e) for e in row[2:]]
             continue
         else:
-            row = row[:2] + [points[e] for e in row[2:]]
+            row = row[:2] + [(points[e] if e in points else e) for e in row[2:]]
         rows += [row]
     columns[0] = 'Timestamp'
     columns[1] = 'id'
@@ -48,7 +49,13 @@ def calc_scores(answers):
         apply_sign = lambda x: 6-x if sign=='-' else x
         answers[question] = apply_sign(answers[question])
 
-    scores = answers.drop(['Timestamp'], axis=1).set_index('id').T
+    answers = answers.set_index('id')
+    questions = set(c['Fraga'])
+    for col in answers.columns:
+        if col not in questions:
+            answers = answers.drop(col, axis=1)
+    scores = answers.T
+
     _cat10 = [line.split('=') for line in open('small-ten.txt', encoding='utf8')]
     _cat10 = {k.strip():[w.strip() for w in vs.split(',')] for k,vs in _cat10}
     cat10 = defaultdict(list)
@@ -125,12 +132,18 @@ def show_latest_group():
         data = f.read()
         answers = csv2df(data)
         scores,cnt = calc_scores(answers)
+        mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
+        subject = mail_template[0].split('=')[-1].strip()
+        mail_body = '\r\n'.join(mail_template[1:]).strip()
+        subject = url_quote(subject)
+        mail_body = url_quote(mail_body)
         cips = [(student_id,cipher(student_id)) for student_id in answers['id']]
         extra_html = '<h2>Individuella resultat</h2>\n'
-        extra_html += '<table><tr><th>Student</th><th>URL</th></tr>\n'
+        extra_html += '<table><tr><th>Student</th><th>Resultat</th></tr>\n'
         for student_id,cip in cips:
             url = '%shulten-big-five/student/%s' % (request.url_root, cip)
-            extra_html += '<tr><td>%s</td><td><a href="%s">%s</a></td></tr>\n' % (student_id, url, url)
+            body = mail_body.replace('---', url)
+            extra_html += '<tr><td><a href="mailto:%s?subject=%s&body=%s">%s</a></td><td><a href="%s">%s</a></td></tr>\n' % (student_id, subject, body, student_id, url, url)
         extra_html += '</table>\n<br/>\n'
         title = 'Personlighetstest: medelvärde för %i svar' % cnt
         scores_html = chart_scores(title, scores)
