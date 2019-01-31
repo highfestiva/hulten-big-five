@@ -26,6 +26,8 @@ points = {'Stämmer inte alls': 1,
 
 
 def csv2df(data):
+    print('data:')
+    print(data)
     rf = io.StringIO(data)
     rd = csv.reader(rf)
     rows = []
@@ -154,7 +156,7 @@ def show_latest_group():
 
 @app.route('/hulten-big-five/student/<cipher_id>')
 def show_student(cipher_id):
-    with open(filename, 'rt') as f:
+    with open(filename, 'rt', encoding='utf8') as f:
         data = f.read()
         answers = csv2df(data)
         student_id = [sid for sid in answers['id'] if cipher(sid)==cipher_id][0]
