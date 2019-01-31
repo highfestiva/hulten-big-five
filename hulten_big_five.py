@@ -123,7 +123,7 @@ def upload_big_five_csv():
                 data = submitted_file.read().decode()
             except:
                 data = submitted_file.read().decode('iso-8859-1')
-            with open(filename, 'wt') as f:
+            with open(filename, 'wt', encoding='utf8') as f:
                 f.write(data)
             return redirect('/hulten-big-five/mr-hulten-himself')
     return render_template('main.html')
@@ -131,11 +131,7 @@ def upload_big_five_csv():
 
 @app.route('/hulten-big-five/mr-hulten-himself')
 def show_latest_group():
-    try:
-        f = open('filename', 'rt')
-    except:
-        return redirect('/hulten-big-five/upload')
-    data = f.read()
+    data = open('filename', 'rt', encoding='utf8').read()
     answers = csv2df(data)
     scores,cnt = calc_scores(answers)
     mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
