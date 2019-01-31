@@ -119,7 +119,10 @@ def upload_big_five_csv():
     if request.method == 'POST':
         submitted_file = request.files['file']
         if submitted_file.filename:
-            data = submitted_file.read().decode()
+            try:
+                data = submitted_file.read().decode()
+            except:
+                data = submitted_file.read().decode('iso-8859-1')
             with open(filename, 'wt') as f:
                 f.write(data)
             return redirect('/hulten-big-five/mr-hulten-himself')
@@ -128,26 +131,29 @@ def upload_big_five_csv():
 
 @app.route('/hulten-big-five/mr-hulten-himself')
 def show_latest_group():
-    with open(filename, 'rt') as f:
-        data = f.read()
-        answers = csv2df(data)
-        scores,cnt = calc_scores(answers)
-        mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
-        subject = mail_template[0].split('=')[-1].strip()
-        mail_body = '\r\n'.join(mail_template[1:]).strip()
-        subject = url_quote(subject)
-        mail_body = url_quote(mail_body)
-        cips = [(student_id,cipher(student_id)) for student_id in answers['id']]
-        extra_html = '<h2>Individuella resultat</h2>\n'
-        extra_html += '<table><tr><th>Student</th><th>Resultat</th></tr>\n'
-        for student_id,cip in cips:
-            url = '%shulten-big-five/student/%s' % (request.url_root, cip)
-            body = mail_body.replace('---', url)
-            extra_html += '<tr><td><a href="mailto:%s?subject=%s&body=%s">%s</a></td><td><a href="%s">%s</a></td></tr>\n' % (student_id, subject, body, student_id, url, url)
-        extra_html += '</table>\n<br/>\n'
-        title = 'Personlighetstest: medelvärde för %i svar' % cnt
-        scores_html = chart_scores(title, scores)
-        return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer=extra_html)
+    try:
+        f = open('filename', 'rt')
+    except:
+        return redirect('/hulten-big-five/upload')
+    data = f.read()
+    answers = csv2df(data)
+    scores,cnt = calc_scores(answers)
+    mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
+    subject = mail_template[0].split('=')[-1].strip()
+    mail_body = '\r\n'.join(mail_template[1:]).strip()
+    subject = url_quote(subject)
+    mail_body = url_quote(mail_body)
+    cips = [(student_id,cipher(student_id)) for student_id in answers['id']]
+    extra_html = '<h2>Individuella resultat</h2>\n'
+    extra_html += '<table><tr><th>Student</th><th>Resultat</th></tr>\n'
+    for student_id,cip in cips:
+        url = '%shulten-big-five/student/%s' % (request.url_root, cip)
+        body = mail_body.replace('---', url)
+        extra_html += '<tr><td><a href="mailto:%s?subject=%s&body=%s">%s</a></td><td><a href="%s">%s</a></td></tr>\n' % (student_id, subject, body, student_id, url, url)
+    extra_html += '</table>\n<br/>\n'
+    title = 'Personlighetstest: medelvärde för %i svar' % cnt
+    scores_html = chart_scores(title, scores)
+    return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer=extra_html)
 
 
 @app.route('/hulten-big-five/student/<cipher_id>')
