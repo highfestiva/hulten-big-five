@@ -1,1 +1,1 @@
-web: gunicorn hulten-big-five:app
+web: gunicorn hulten_big_five:app
