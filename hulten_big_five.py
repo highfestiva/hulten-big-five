@@ -131,7 +131,7 @@ def upload_big_five_csv():
 
 @app.route('/hulten-big-five/mr-hulten-himself')
 def show_latest_group():
-    data = open('filename', 'rt', encoding='utf8').read()
+    data = open(filename, 'rt', encoding='utf8').read()
     answers = csv2df(data)
     scores,cnt = calc_scores(answers)
     mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
