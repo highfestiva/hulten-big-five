@@ -121,10 +121,13 @@ def upload_big_five_csv():
     if request.method == 'POST':
         submitted_file = request.files['file']
         if submitted_file.filename:
+            r = submitted_file.read()
+            print('submitted raw data:')
+            print(r)
             try:
-                data = submitted_file.read().decode()
+                data = r.decode()
             except:
-                data = submitted_file.read().decode('iso-8859-1')
+                data = r.decode('iso-8859-1')
             print('this is the data received:')
             print(data)
             with open(filename, 'wt', encoding='utf8') as f:
