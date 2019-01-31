@@ -26,8 +26,6 @@ points = {'Stämmer inte alls': 1,
 
 
 def csv2df(data):
-    print('data:')
-    print(data)
     rf = io.StringIO(data)
     rd = csv.reader(rf)
     rows = []
@@ -122,14 +120,10 @@ def upload_big_five_csv():
         submitted_file = request.files['file']
         if submitted_file.filename:
             r = submitted_file.read()
-            print('submitted raw data:')
-            print(r)
             try:
                 data = r.decode()
             except:
                 data = r.decode('iso-8859-1')
-            print('this is the data received:')
-            print(data)
             with open(filename, 'wt', encoding='utf8') as f:
                 f.write(data)
             return redirect('/hulten-big-five/mr-hulten-himself')
@@ -139,8 +133,6 @@ def upload_big_five_csv():
 @app.route('/hulten-big-five/mr-hulten-himself')
 def show_latest_group():
     data = open(filename, 'rt', encoding='utf8').read()
-    print('file contents:')
-    print(data)
     answers = csv2df(data)
     scores,cnt = calc_scores(answers)
     mail_template = open('mail_template.txt', encoding='utf8').read().splitlines()
