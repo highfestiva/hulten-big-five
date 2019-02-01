@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import bokeh
 from bokeh.embed import components as plot_html
@@ -11,6 +12,7 @@ from flask import Flask, request, render_template, redirect
 from hashlib import sha1
 import io
 from math import pi
+import numpy as np
 import pandas as pd
 import re
 from urllib.parse import quote as url_quote
@@ -31,13 +33,16 @@ def csv2df(data):
     rows = []
     for i,row in enumerate(rd):
         if i == 0:
-            columns = row[:2] + [re.sub(r'^.*\d+\.* (.+)\]', r'\1', e) for e in row[2:]]
+            columns = [re.sub(r'^.*\d+\.* (.+)\]', r'\1', e) for e in row]
             continue
         else:
-            row = row[:2] + [(points[e] if e in points else e) for e in row[2:]]
+            row = [(points[e] if e in points else (np.nan if not e else e)) for e in row]
         rows += [row]
-    columns[0] = 'Timestamp'
-    columns[1] = 'id'
+    def cleanup(s):
+        s = s.replace('Tidsstämpel','Timestamp')
+        s = 'id' if any(ss in s for ss in 'email e-mail epost e-post'.split()) else s
+        return s
+    columns = [cleanup(c) for c in columns]
     answers = pd.DataFrame(rows, columns=columns)
     return answers
 
@@ -95,7 +100,12 @@ def chart_scores(title, scores, student_id=None):
     else:
         # Student
         data['mean'] = scores[student_id]
-        data['percentile'] = [int(i) for i in scores[student_id+'-percentile']]
+        def intify(i):
+            try:
+                return int(i)
+            except:
+                return np.nan
+        data['percentile'] = [intify(i) for i in scores[student_id+'-percentile']]
         data['scales'] = factors = [(a,b.replace('*',a)) for a,b in scores.index]
         xrng = FactorRange(*factors)
         tooltips = [('Resultat', '@mean{1.1}'), ('Percentil', '@percentile')]
