@@ -44,6 +44,8 @@ def csv2df(data):
         return s
     columns = [cleanup(c) for c in columns]
     answers = pd.DataFrame(rows, columns=columns)
+    pd.set_option('display.max_rows', 500)
+    # print(answers.T)
     return answers
 
 
@@ -73,7 +75,13 @@ def calc_scores(answers):
         subscales = cat10[subscale.capitalize()]
         scores.loc[question, 'subscales'] = subscales[0]
         for i,ss in enumerate(subscales[1:]):
-            scores.loc[question+str(i), 'subscales'] = ss
+            # print('subscaling again', ss, question+str(i))
+            k = question+str(i)
+            # print(scores.loc[question, :])
+            scores.loc[k] = scores.loc[question, :]
+            scores.loc[k, 'subscales'] = ss
+
+    # print(scores)#.dropna(subset=['andreashultenmo@gmail.com']))
 
     scores_main = scores.groupby(['scales']).mean()
     scores_sub = scores.groupby(['scales','subscales']).mean()
