@@ -44,8 +44,23 @@ def csv2df(data):
         return s
     columns = [cleanup(c) for c in columns]
     answers = pd.DataFrame(rows, columns=columns)
+
+    # drop previous answers
+    ids = answers['id']
+    drop_idx = []
+    for i,user in zip(ids.index, ids):
+        for j,prev_user in zip(ids.index[:i], ids):
+            if prev_user == user:
+                if j not in drop_idx:
+                    drop_idx.append(j)
+    for i in reversed(drop_idx):
+        answers = answers.drop(i)
+
+    pd.set_option('display.width', 200)
+    pd.set_option('display.max_columns', 500)
     pd.set_option('display.max_rows', 500)
-    # print(answers.T)
+    # print(answers)
+
     return answers
 
 
@@ -57,10 +72,12 @@ def calc_scores(answers):
         answers[question] = apply_sign(answers[question])
 
     answers = answers.set_index('id')
-    questions = set(c['Fraga'])
-    for col in answers.columns:
-        if col not in questions:
-            answers = answers.drop(col, axis=1)
+
+    # print(answers)
+    # questions = set(c['Fraga'])
+    # for col in answers.columns:
+        # if col not in questions:
+            # answers = answers.drop(col, axis=1)
     scores = answers.T
 
     _cat10 = [line.split('=') for line in open('small-ten.txt', encoding='utf8')]
@@ -81,10 +98,13 @@ def calc_scores(answers):
             scores.loc[k] = scores.loc[question, :]
             scores.loc[k, 'subscales'] = ss
 
-    # print(scores)#.dropna(subset=['andreashultenmo@gmail.com']))
+    # remove timestamp, sex, etc.
+    clean_scores = scores.dropna(subset=['scales']).copy()
+    for col in clean_scores.columns:
+        clean_scores[col] = clean_scores[col].astype(float, errors='ignore')
 
-    scores_main = scores.groupby(['scales']).mean()
-    scores_sub = scores.groupby(['scales','subscales']).mean()
+    scores_main = clean_scores.groupby(['scales']).mean()
+    scores_sub = clean_scores.groupby(['scales','subscales']).mean()
     for main in scores_main.index:
         v = scores_main.loc[main]
         scores_sub.loc[(main,'*'), :] = v
@@ -93,10 +113,15 @@ def calc_scores(answers):
     scores_sub['mean'] = scores_sub.mean(axis=1)
     scores_sub = scores_sub.join(percentile, rsuffix='-percentile')
     cnt = len(answers)
+
+    # print(scores_sub)
+
     return scores_sub, cnt
 
 
 def chart_scores(title, scores, student_id=None):
+    # print(scores)
+
     p = figure()
     data = {'color':viridis(len(scores))}
     if student_id is None:
