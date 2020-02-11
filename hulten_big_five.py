@@ -40,7 +40,7 @@ def csv2df(data):
         rows += [row]
     def cleanup(s):
         s = s.replace('Tidsstämpel','Timestamp')
-        s = 'id' if any(ss in s for ss in 'email e-mail epost e-post'.split()) else s
+        s = 'id' if any(ss in s.lower() for ss in 'email e-mail epost e-post id-n'.split()) else s
         return s
     columns = [cleanup(c) for c in columns]
     answers = pd.DataFrame(rows, columns=columns)
