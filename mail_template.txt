@@ -2,7 +2,7 @@ subject=Psykologienkätresultat
 
 Hej,
 
-här kommer ditt resultat på psykologienkäten:
+här kommer ditt resultat på personlighetstestet:
 ---
 
 Mvh,
