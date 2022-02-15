@@ -119,29 +119,58 @@ def calc_scores(answers):
     return scores_sub, cnt
 
 
-def chart_scores(title, scores, student_id=None):
+def intify(i):
+    try:
+        return int(i)
+    except:
+        return np.nan
+
+
+def chart_scores(title, scores, student_id=None, details=True):
     # print(scores)
 
     p = figure()
-    data = {'color':viridis(len(scores))}
+    data = {}
     if student_id is None:
         # Mr. Hulten
         data['mean'] = scores['mean']
-        data['scales'] = factors = [(a,b.replace('*',a)) for a,b in scores.index]
-        xrng = FactorRange(*factors)
         tooltips = [('Medelvärde', '@mean{1.1}')]
     else:
         # Student
         data['mean'] = scores[student_id]
-        def intify(i):
-            try:
-                return int(i)
-            except:
-                return np.nan
-        data['percentile'] = [intify(i) for i in scores[student_id+'-percentile']]
+        tooltips = [('Resultat', '@mean{1.1}'), ('Percentil', '@percentile')]
+    # print('details:', details)
+    # print('score:')
+    # print(scores)
+    m = data['mean']
+    print(m)
+    # print(type(m))
+    if details:
         data['scales'] = factors = [(a,b.replace('*',a)) for a,b in scores.index]
         xrng = FactorRange(*factors)
-        tooltips = [('Resultat', '@mean{1.1}'), ('Percentil', '@percentile')]
+    else:
+        m = m.reset_index()
+        m = m[m['subscales'] == '*'].drop('subscales', axis=1).set_index('scales')
+        data['scales'] = m.index
+        xrng = FactorRange(*m.index)
+        print('**************')
+        print(m)
+        data['mean'] = m[m.columns[0]].values
+    if student_id:
+        s = scores[student_id+'-percentile']
+        print(s)
+        if not details:
+            s = s.reset_index()
+            s = s[s['subscales'] == '*'].drop('subscales', axis=1).set_index('scales')
+            s = s[s.columns[0]]
+        print(s)
+        print(type(s))
+        data['percentile'] = [intify(i) for i in s]
+        for i in s:
+            print(i)
+        print('------>', data['percentile'])
+    data['color'] = viridis(len(data['mean']))
+    print(data)
     source = ColumnDataSource(data=data)
     p = figure(title=title, x_range=xrng, y_range=(0,5), sizing_mode='stretch_both', toolbar_location=None, tools='')
     p.xaxis.major_label_orientation = pi/3
@@ -175,6 +204,7 @@ def upload_big_five_csv():
 
 @app.route('/hulten-big-five/mr-hulten-himself')
 def show_latest_group():
+    details = request.args.get('details', '')
     data = open(filename, 'rt', encoding='utf8').read()
     answers = csv2df(data)
     scores,cnt = calc_scores(answers)
@@ -192,12 +222,13 @@ def show_latest_group():
         extra_html += '<tr><td><a href="mailto:%s?subject=%s&body=%s">%s</a></td><td><a href="%s">%s</a></td></tr>\n' % (student_id, subject, body, student_id, url, url)
     extra_html += '</table>\n<br/>\n'
     title = 'Personlighetstest: medelvärde för %i svar' % cnt
-    scores_html = chart_scores(title, scores)
-    return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer=extra_html)
+    scores_html = chart_scores(title, scores, details=details)
+    return render_template('mean.html', plot=scores_html, details='checked' if details else '', bokeh_version=bokeh.__version__, footer=extra_html)
 
 
 @app.route('/hulten-big-five/student/<cipher_id>')
 def show_student(cipher_id):
+    details = request.args.get('details', '')
     with open(filename, 'rt', encoding='utf8') as f:
         data = f.read()
         answers = csv2df(data)
@@ -205,8 +236,8 @@ def show_student(cipher_id):
         scores,cnt = calc_scores(answers)
         scores = scores[[c for c in scores.columns if student_id in c]]
         title = 'Personlighetstest: %s jämfört med övriga %i svar' % (student_id, cnt-1)
-        scores_html = chart_scores(title, scores, student_id=student_id)
-        return render_template('mean.html', plot=scores_html, bokeh_version=bokeh.__version__, footer='')
+        scores_html = chart_scores(title, scores, student_id=student_id, details=details)
+        return render_template('mean.html', plot=scores_html, details='checked' if details else '', bokeh_version=bokeh.__version__, footer='')
 
 
 if __name__ == '__main__':

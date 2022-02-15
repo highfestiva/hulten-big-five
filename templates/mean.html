@@ -17,12 +17,31 @@
         height: 80%;
         margin-top: 5em;
     }
+    .details {
+        position: absolute;
+        left: 10%;
+        top: 1em;
+        margin: 0;
+    }
     h2 {
       margin-top: 5em;
     }
   </style>
+  <script>
+    function sendForm() {
+        document.forms[0].submit();
+    }
+    window.onload = function() {
+        var details = document.getElementById('details');
+        details.onchange = sendForm;
+    }
+  </script>
 </head>
 <body>
+  <form class="details" method="get">
+    <input type="checkbox" id="details" name="details" {{details}}></input>
+    <label for="details">Visa detaljerade resultat</label>
+  </form>
   <div class="plot">
     {{plot|safe}}
   </div>
